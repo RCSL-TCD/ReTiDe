@@ -1,12 +1,7 @@
 # Vitis-AI UNet
 
 ## Purpose
-This project is to rebuild Emmet Murphy's workflow aka transfering a UNet to Alveo U50 for denosing
-
-## Structure
-- model_for_training: float models for training
-- release_deployable: released xmodel and drivers verified with Alveo U50 on the server
-- vai_unet: workspace and source code to build the protypes and xmodels, main work path is 5_vai_container.
+This project is to build a vitis-ai UNet to Alveo U50 for denoising
 
 ## Preparation
 Emmet's project was built up using Vitis-AI 1.4.1,
@@ -17,11 +12,16 @@ VAI 1.4.1 only work with Vitis 2021.1
 ### VAI 1.4.1
 clone from VAI github and switch to 1.4.1
 ### Docker Image
-cd /home/changhong/prj/vai_unet/0_follow_tutorial/09-mnist_pyt/files
-./docker_run.sh xilinx/vitis-ai-cpu:1.4.1.978
-We'd better to mannuly choose vai version to avoid any version problems
+We have 3 docker images which could be downloaded and run with three scripts.
+- start_vai.sh: vitis-ai-cpu:1.4.1.978, for xmodel build flow as it is the last version support Alveo U50 DPU.
+- start_vai_25gpu.sh: vitis-ai-gpu:latest, for gpu QAT.
+- start_vai_3.sh :vitis-ai:latest, if you wanna try more advanced DPUs.
 
 ## How to run
+
+```shell
+(bash) source start_vai.sh
+```shell
 
 ```shell
 Vitis-AI /workspace > conda activate vitis-ai-pytorch
