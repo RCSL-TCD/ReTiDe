@@ -14,5 +14,15 @@
 ## Deployment
 - Follow this flow to build the server enviroment.
 - Here we take centos + Alveo U50 as a typical example.
+- Input: xmodel, dataset.
+- Ouput: benchmarking result.
 ## General interface
 - The python interface for calling the FPGA's denoising service on the server.
+
+## Reference
+- Float model dev version: https://github.com/MrBled/HardwareDenoiser
+- PTQ+QAT flow dev version: https://github.com/CNStanLee/Emerald_Video_Denoise_Acc
+- pix2pix: https://github.com/phillipi/pix2pix
+
+## Citation
+- update our arxiv link here.
