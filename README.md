@@ -19,10 +19,15 @@
 ## General interface
 - The python interface for calling the FPGA's denoising service on the server.
 
-## Reference
+## Reference and resources
 - Float model dev version: https://github.com/MrBled/HardwareDenoiser
 - PTQ+QAT flow dev version: https://github.com/CNStanLee/Emerald_Video_Denoise_Acc
 - pix2pix: https://github.com/phillipi/pix2pix
+- BSD68: https://www.kaggle.com/code/mpwolke/berkeley-segmentation-dataset-68
+- BSD68C: https://github.com/clausmichele/CBSD68-dataset?tab=readme-ov-file
+- BSD100: https://www.kaggle.com/datasets/asilva1691/bsd100
+- SET12: https://www.kaggle.com/datasets/leweihua/set12-231008
+
 
 ## Citation
 - update our arxiv link here.
