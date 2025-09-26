@@ -28,7 +28,7 @@
 - update our arxiv link here.
 
 ## Demo
-- A demo video could be found at: https://youtu.be/LKpf4NsSWJw
+- A demo video could be found at: https://www.youtube.com/watch?v=0epcrRA_f2w
 
 ## Acknowledgement
 This work was funded by the Horizon CL4 2022 - EU Project Emerald – 101119800.
