@@ -13,6 +13,8 @@
 !requirements.txt
 !final_model.pt
 !*.onnx
+!*.sh
+!*.txt
 # exceptions: explicitly ignore certain specific .log files
 **/vivado.log
 **/build_dataflow.log
