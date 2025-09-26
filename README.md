@@ -31,3 +31,4 @@
 - A demo video could be found at: https://youtu.be/LKpf4NsSWJw
 
 ## Acknowledgement
+This work was funded by the Horizon CL4 2022 - EU Project Emerald – 101119800.
