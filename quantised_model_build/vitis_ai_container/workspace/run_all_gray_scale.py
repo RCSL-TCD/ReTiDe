@@ -1,7 +1,6 @@
 # ----------------------------------------------------------------------------
 # Emerald Video Denoise Accelerator
 # Benchmarking script for evaluating model performance
-# In this script, we benchmark the 2 models with pixel shuffle and without pixel shuffle.
 # ----------------------------------------------------------------------------
 import os
 import cv2
@@ -19,23 +18,19 @@ import time
 
 from typing import List
 # ----------------------------------------------------------------------------
-# from models.models_nndct_0812 import UnetGenerator_hardware_nndct as Unet
-# from models.models_nndct_0820 import UnetGenerator_3stage as Unet
-from models.models_nndct_0821 import UnetGenerator_3stage as Unet
-# from utils.dataloader import get_dataloader
+from models.models_nndct_0812 import UnetGenerator_hardware_nndct as Unet
 from utils.preprocessing import process_images, process_images_grayscale, crop_and_save_images
 from utils.dataloader import DenoiseDatasetGrayScale, get_grayscale_loaders
 from utils.testmodel import print_test_results, test_denoising_model_grayscale
 from utils.model_trainer import Trainer, calculate_raw_metrics
 from utils.quantize import quantize, quantize_qat, quantize_qat_gray
-#from utils.performance import measure_model_performance, print_performance_results
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
 # model definition
 # ----------------------------------------------------------------------------
 # float32 model
-unet_f32_weight_path = 'models/unet_f32_0821_gray_oldtorch.pt'  # Path to the float32 model weights
+unet_f32_weight_path = 'models/unet_f32_0812_gray_oldtorch.pt'
 
 # ----------------------------------------------------------------------------
 # test set definition
@@ -86,7 +81,7 @@ def test_load(datapath, unet_f32_weight_path):
     print(spliter)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'running with {device}')
-    model = Unet(input_nc=input_nc, output_nc=output_nc) 
+    model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs) 
     model.load_state_dict(torch.load(unet_f32_weight_path))
     model.to(device)
     print('model loaded')
@@ -122,7 +117,7 @@ def PTQ(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Running on device: {device}')
     
-    model = Unet(input_nc=input_nc, output_nc=output_nc)
+    model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs)
     model.load_state_dict(torch.load(model_path))
     model.to(device)
     benchmark_trainer = Trainer(model, train_loader, val_loader, test_loader, device)
@@ -153,54 +148,17 @@ def PTQ(model_path):
                                                             size = [1, 256, 256])
     print(f"PTQ Quantized Model Metrics:\nMSE: {mse:.4f}, PSNR: {psnr:.2f} dB, Time: {elapsed_time:.2f} seconds")
     return mse, psnr, quantized_model, f32_mse, f32_psnr, raw_mse, raw_psnr
-# def QAT(model_path, qat_epochs=10):
-#     print('Starting QAT quantization')
-#     print(spliter)
 
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     print(f'Running on device: {device}')
-#     model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs)
-#     model.load_state_dict(torch.load(model_path))
-#     # model.to(device)
-#     # # qat_batch_size = 4
-#     # train_loader, val_loader, test_loader = get_grayscale_loaders(dataset_ntire_path, batch_size=batch_size, val_ratio=0.1, test_ratio=0.3)
-#     # train_loader2, val_loader2, test_loader2 = get_grayscale_loaders(dataset_ntire_path, batch_size=batch_size, val_ratio=0.1, test_ratio=0.3)
-
-#     # print(f"Train loader: {len(train_loader)} batches, Val loader: {len(val_loader)} batches, Test loader: {len(test_loader)} batches")
-
-#     # trainer = Trainer(model, train_loader, val_loader, test_loader, device=device, lr=0.01)
-#     # trainer2 = Trainer(model, train_loader2, val_loader2, test_loader2, device='cpu', lr=0.01)
-#     # # model to cpu for QAT
-
-#     # print('Model loaded for QAT')
-#     # mse, psnr, elapsed_time, quantized_model = quantize_qat(batch_size, model, trainer, [1, 256, 256], qat_epochs, trainer2)
-#     # print(f"QAT Quantized Model Metrics:\nMSE: {mse:.4f}, PSNR: {psnr:.2f} dB, Time: {elapsed_time:.2f} seconds")
-
-def QAT(model_path, qat_epochs=10, lr=1e-8):
+def QAT(model_path, qat_epochs=10):
     print('Starting QAT quantization')
     print(spliter)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Running on device: {device}')
-    model = Unet(input_nc=input_nc, output_nc=output_nc)
+    model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs)
     model.load_state_dict(torch.load(model_path))
-    #test_loss, psnr, final_quantized_model = quantize_qat_gray(model, dataset_ntire_path, batch_size=16, qat_epochs=qat_epochs)
-    #test_loss, psnr, final_quantized_model = quantize_qat_gray(model, dataset_ntire2_path, batch_size=16, qat_epochs=qat_epochs, lr = lr)
-    test_loss, psnr, final_quantized_model = quantize_qat_gray(model, dataset_bsd68_path, batch_size=16, qat_epochs=qat_epochs, lr = lr)
-    # model.to(device)
-    # # qat_batch_size = 4
-    # train_loader, val_loader, test_loader = get_grayscale_loaders(dataset_ntire_path, batch_size=batch_size, val_ratio=0.1, test_ratio=0.3)
-    # train_loader2, val_loader2, test_loader2 = get_grayscale_loaders(dataset_ntire_path, batch_size=batch_size, val_ratio=0.1, test_ratio=0.3)
+    test_loss, psnr, final_quantized_model = quantize_qat_gray(model, dataset_ntire2_path, batch_size=32, qat_epochs=qat_epochs)
 
-    # print(f"Train loader: {len(train_loader)} batches, Val loader: {len(val_loader)} batches, Test loader: {len(test_loader)} batches")
-
-    # trainer = Trainer(model, train_loader, val_loader, test_loader, device=device, lr=0.01)
-    # trainer2 = Trainer(model, train_loader2, val_loader2, test_loader2, device='cpu', lr=0.01)
-    # # model to cpu for QAT
-
-    # print('Model loaded for QAT')
-    # mse, psnr, elapsed_time, quantized_model = quantize_qat(batch_size, model, trainer, [1, 256, 256], qat_epochs, trainer2)
-    # print(f"QAT Quantized Model Metrics:\nMSE: {mse:.4f}, PSNR: {psnr:.2f} dB, Time: {elapsed_time:.2f} seconds")
     return test_loss, psnr, final_quantized_model
 
 def benchmark_model(datapath):
@@ -215,7 +173,7 @@ def benchmark_model(datapath):
 
     print('Benchmarking float32 model with dataset:', datapath)
     print(spliter)
-    f32_model = Unet(input_nc=input_nc, output_nc=output_nc) 
+    f32_model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs) 
     f32_model.load_state_dict(torch.load(unet_f32_weight_path))
     f32_model.to(device)
     print('f32 model loaded')
@@ -239,8 +197,6 @@ def benchmark_model(datapath):
         print(f"Results saved to: {output_dir}")
 
 if __name__ == "__main__":
-    torch.manual_seed(516)
-    np.random.seed(516)
-
-    mse_q, psnr_q, quantized_model_q = QAT(unet_f32_weight_path, qat_epochs=5, lr=1e-8)
-    print(f"QAT Model Metrics:\nMSE: {mse_q:.4f}, PSNR: {psnr_q:.2f} dB")
+    torch.manual_seed(1998)
+    np.random.seed(1998)
+    mse_q, psnr_q, quantized_model_q = QAT(unet_f32_weight_path, qat_epochs=30)

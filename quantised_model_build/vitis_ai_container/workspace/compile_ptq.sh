@@ -51,15 +51,15 @@ LOG=$3
 
 compile() {
   vai_c_xir \
-  --xmodel      ${BUILD}/quant_model/UnetGenerator_3stage_0_int.xmodel \
+  --xmodel      ${BUILD}/quant_model/UnetGenerator_hardware_nndct_0_int.xmodel \
   --arch        $ARCH \
-  --net_name    UnetGenerator_3stage_${TARGET} \
+  --net_name    UnetGenerator_${TARGET} \
   --output_dir  ${BUILD}/compiled_model/ptq
 }
 
 compile 2>&1 | tee ${LOG}/compile_$TARGET.log
 
-echo "3stage"
+
 echo "-----------------------------------------"
 echo "MODEL COMPILED"
 echo "-----------------------------------------"

@@ -1,7 +1,6 @@
 # ----------------------------------------------------------------------------
 # Emerald Video Denoise Accelerator
 # Benchmarking script for evaluating model performance
-# In this script, we benchmark the 2 models with pixel shuffle and without pixel shuffle.
 # ----------------------------------------------------------------------------
 import os
 import cv2
@@ -17,25 +16,20 @@ import xir
 import vart
 import time
 
-
 from typing import List
 # ----------------------------------------------------------------------------
-#from models.models_nndct_0812 import UnetGenerator_hardware_nndct as Unet
-from models.models_nndct_0821 import UnetGenerator_3stage as Unet
-# from utils.dataloader import get_dataloader
+from models.models_nndct_0812 import UnetGenerator_hardware_nndct as Unet
 from utils.preprocessing import process_images, process_images_grayscale, crop_and_save_images, crop_and_save_images_color
 from utils.dataloader import DenoiseDatasetGrayScale, get_grayscale_loaders, DenoiseDatasetColor, get_multi_noise_color_loaders
 from utils.testmodel import print_test_results, test_denoising_model_grayscale
 from utils.model_trainer import Trainer, calculate_raw_metrics
 from utils.quantize import quantize, quantize_qat, quantize_qat_gray, quantize_qat_color
-#from utils.performance import measure_model_performance, print_performance_results
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
 # model definition
 # ----------------------------------------------------------------------------
-# float32 model
-unet_f32_weight_path = 'models/unet_f32_0821_color_oldtorch.pt'  # Path to the float32 model weights
+unet_f32_weight_path = 'models/unet_f32_0814_color_oldtorch.pt'
 
 # ----------------------------------------------------------------------------
 # test set definition
@@ -78,8 +72,7 @@ def test_load(datapath, unet_f32_weight_path):
     print(spliter)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'running with {device}')
-    #model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs) 
-    model = Unet(input_nc, output_nc)
+    model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs) 
     model.load_state_dict(torch.load(unet_f32_weight_path))
     model.to(device)
     print('model loaded')
@@ -88,6 +81,7 @@ def test_load(datapath, unet_f32_weight_path):
 
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Trainable parameters: {trainable_params}")
+
 
     print('excuting the denoising')
     print(spliter)
@@ -120,7 +114,7 @@ def PTQ(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Running on device: {device}')
     
-    model = Unet(input_nc, output_nc)
+    model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs)
     model.load_state_dict(torch.load(model_path))
     model.to(device)
     benchmark_trainer = Trainer(model, train_loader, val_loader, test_loader, device)
@@ -158,10 +152,9 @@ def QAT(model_path, qat_epochs=10):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Running on device: {device}')
-    #model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs)
-    model = Unet(input_nc, output_nc)
+    model = Unet(input_nc=input_nc, output_nc=output_nc, num_downs=num_downs)
     model.load_state_dict(torch.load(model_path))
-    test_loss, psnr, final_quantized_model = quantize_qat_color(model, dataset_ntire2_path, batch_size=8, qat_epochs=qat_epochs)
+    test_loss, psnr, final_quantized_model = quantize_qat_color(model, dataset_ntire2_path, batch_size=32, qat_epochs=qat_epochs)
 
     return test_loss, psnr, final_quantized_model
 
@@ -169,6 +162,4 @@ def QAT(model_path, qat_epochs=10):
 if __name__ == "__main__":
     print('start testing')
     test_load(dataset_bsd68c_path, unet_f32_weight_path)
-    #test_load(dataset_ntire2_path, unet_f32_weight_path)
-    #mse_p, psnr_p, quantized_model_p, f32_mse, f32_psnr, raw_mse, raw_psnr = PTQ(unet_f32_weight_path)
-    #mse_q, psnr_q, quantized_model_q = QAT(unet_f32_weight_path, qat_epochs=30)
+    mse_p, psnr_p, quantized_model_p, f32_mse, f32_psnr, raw_mse, raw_psnr = PTQ(unet_f32_weight_path)
