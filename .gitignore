@@ -1,0 +1,21 @@
+# ignore all files
+*
+
+# allow Git to traverse directories
+!*/
+
+# allow tracking of .py and .log files
+!*.py
+!*.ipynb
+!*.log
+!*.md
+!*.yaml
+!requirements.txt
+!final_model.pt
+!*.onnx
+# exceptions: explicitly ignore certain specific .log files
+**/vivado.log
+**/build_dataflow.log
+
+# keep .gitignore itself
+!.gitignore
