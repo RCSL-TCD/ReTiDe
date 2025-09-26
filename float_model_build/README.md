@@ -33,3 +33,8 @@ git lfs pull
 # - Git LFS is only required once per system.
 # - If Git LFS is not installed, large files will appear as small text pointer files.
 # - Do not edit or commit LFS pointer files manually unless you know what you're doing.
+```bash
+
+# Reference
+This version code is an archived version, the development version link is: https://github.com/MrBled/HardwareDenoiser
+This model is built base on: https://github.com/phillipi/pix2pix
