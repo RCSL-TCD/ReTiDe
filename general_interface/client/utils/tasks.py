@@ -20,9 +20,10 @@ def test_api():
 
 def single_f32_inference(image_path):
     url = f"http://{server_ip}:{port}/api/f32_inference"
-    os.makedirs('results', exist_ok=True)
-    os.makedirs('results/images', exist_ok=True)
-    
+    result_path = "results/single_f32_inference"
+    os.makedirs(result_path, exist_ok=True)
+    os.makedirs(f"{result_path}/images", exist_ok=True)
+
     try:
         # stage1: upload image
         with open(image_path, 'rb') as f:
@@ -49,8 +50,8 @@ def single_f32_inference(image_path):
             inference = result.get('inference_result', {})
             if isinstance(inference, dict):
                 class_name = inference.get('class', 'N/A')
-                confidence = inference.get('confidence', 0)
-                print(f"  prediction result: {class_name} (confidence: {confidence:.2f})")
+                #confidence = inference.get('confidence', 0)
+                print(f"  prediction result: {class_name}")
             else:
                 print(f"  prediction result: {inference}")
 
@@ -62,8 +63,8 @@ def single_f32_inference(image_path):
             
             if 'processed_image_url' in result and result['processed_image_url']:
                 processed_image_url = result['processed_image_url']
-                processed_image_path = f"results/images/processed_{image_name}_{timestamp}.png"
-                
+                processed_image_path = f"{result_path}/images/processed_{image_name}_{timestamp}.png"
+
                 img_response = requests.get(processed_image_url)
                 if img_response.status_code == 200:
                     with open(processed_image_path, 'wb') as f:
@@ -73,14 +74,14 @@ def single_f32_inference(image_path):
                 else:
                     print(f"✗ failed to download processed image: {img_response.status_code}")
 
-            original_copy_path = f"results/images/original_{image_name}_{timestamp}.png"
+            original_copy_path = f"{result_path}/images/original_{image_name}_{timestamp}.png"
             try:
                 shutil.copy2(image_path, original_copy_path)
                 print(f"✓ original copy saved: {original_copy_path}")
             except Exception as e:
                 print(f"✗ failed to save original copy: {e}")
 
-            result_file = f"results/result_{image_name}_{timestamp}.json"
+            result_file = f"{result_path}/result_{image_name}_{timestamp}.json"
             save_data = {
                 "original_image": image_path,
                 "original_copy": original_copy_path,
@@ -111,9 +112,10 @@ def single_f32_inference(image_path):
     
 def single_fpga_inference(image_path):
     url = f"http://{server_ip}:{port}/api/fpga_single_inference"
-    os.makedirs('results', exist_ok=True)
-    os.makedirs('results/images', exist_ok=True)
-    
+    result_path = "results/single_fpga_inference"
+    os.makedirs(result_path, exist_ok=True)
+    os.makedirs(f"{result_path}/images", exist_ok=True)
+
     try:
         # stage1: upload image
         with open(image_path, 'rb') as f:
@@ -153,8 +155,8 @@ def single_fpga_inference(image_path):
             
             if 'processed_image_url' in result and result['processed_image_url']:
                 processed_image_url = result['processed_image_url']
-                processed_image_path = f"results/images/processed_{image_name}_{timestamp}.png"
-                
+                processed_image_path = f"{result_path}/images/processed_{image_name}_{timestamp}.png"
+
                 img_response = requests.get(processed_image_url)
                 if img_response.status_code == 200:
                     with open(processed_image_path, 'wb') as f:
@@ -164,14 +166,14 @@ def single_fpga_inference(image_path):
                 else:
                     print(f"✗ failed to download processed image: {img_response.status_code}")
 
-            original_copy_path = f"results/images/original_{image_name}_{timestamp}.png"
+            original_copy_path = f"{result_path}/images/original_{image_name}_{timestamp}.png"
             try:
                 shutil.copy2(image_path, original_copy_path)
                 print(f"✓ original copy saved: {original_copy_path}")
             except Exception as e:
                 print(f"✗ failed to save original copy: {e}")
 
-            result_file = f"results/result_{image_name}_{timestamp}.json"
+            result_file = f"{result_path}/result_{image_name}_{timestamp}.json"
             save_data = {
                 "original_image": image_path,
                 "original_copy": original_copy_path,
@@ -202,10 +204,10 @@ def single_fpga_inference(image_path):
     
 def multiple_f32_inference(folder_path):
     url = f"http://{server_ip}:{port}/api/f32_inference_multiple"
-    
-    os.makedirs('results', exist_ok=True)
-    os.makedirs('results/images', exist_ok=True)
-    
+    result_path = "results/multiple_f32_inference"
+    os.makedirs(result_path, exist_ok=True)
+    os.makedirs(f'{result_path}/images', exist_ok=True)
+
     image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif'}
     image_files = []
     
@@ -273,8 +275,8 @@ def multiple_f32_inference(folder_path):
                 
                 if 'processed_image_url' in file_result and file_result['processed_image_url']:
                     processed_image_url = file_result['processed_image_url']
-                    processed_image_path = f"results/images/processed_{image_name}_{timestamp}.png"
-                    
+                    processed_image_path = f"{result_path}/images/processed_{image_name}_{timestamp}.png"
+
                     img_response = requests.get(processed_image_url)
                     if img_response.status_code == 200:
                         with open(processed_image_path, 'wb') as f:
@@ -292,7 +294,7 @@ def multiple_f32_inference(folder_path):
                 
                 original_copy_path = None
                 if original_file_path:
-                    original_copy_path = f"results/images/original_{image_name}_{timestamp}.png"
+                    original_copy_path = f"{result_path}/images/original_{image_name}_{timestamp}.png"
                     try:
                         shutil.copy2(original_file_path, original_copy_path)
                         print(f"✓ original image copy saved: {original_copy_path}")
@@ -311,8 +313,8 @@ def multiple_f32_inference(folder_path):
                     }
                 }
                 batch_results.append(single_result)
-            
-            result_file = f"results/batch_result_{folder_name}_{timestamp}.json"
+
+            result_file = f"{result_path}/batch_result_{folder_name}_{timestamp}.json"
             save_data = {
                 "batch_info": {
                     "folder_path": folder_path,
@@ -341,10 +343,11 @@ def multiple_f32_inference(folder_path):
 
 def multiple_fpga_inference(folder_path):
     url = f"http://{server_ip}:{port}/api/fpga_inference_multiple"
-    
-    os.makedirs('results', exist_ok=True)
-    os.makedirs('results/images', exist_ok=True)
-    
+
+    result_path = "results/multiple_fpga_inference"
+    os.makedirs(result_path, exist_ok=True)
+    os.makedirs(f"{result_path}/images", exist_ok=True)
+
     image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif'}
     image_files = []
     
@@ -412,8 +415,8 @@ def multiple_fpga_inference(folder_path):
                 
                 if 'processed_image_url' in file_result and file_result['processed_image_url']:
                     processed_image_url = file_result['processed_image_url']
-                    processed_image_path = f"results/images/processed_{image_name}_{timestamp}.png"
-                    
+                    processed_image_path = f"{result_path}/images/processed_{image_name}_{timestamp}.png"
+
                     img_response = requests.get(processed_image_url)
                     if img_response.status_code == 200:
                         with open(processed_image_path, 'wb') as f:
@@ -431,7 +434,7 @@ def multiple_fpga_inference(folder_path):
                 
                 original_copy_path = None
                 if original_file_path:
-                    original_copy_path = f"results/images/original_{image_name}_{timestamp}.png"
+                    original_copy_path = f"{result_path}/images/original_{image_name}_{timestamp}.png"
                     try:
                         shutil.copy2(original_file_path, original_copy_path)
                         print(f"✓ original image copy saved: {original_copy_path}")
@@ -450,8 +453,8 @@ def multiple_fpga_inference(folder_path):
                     }
                 }
                 batch_results.append(single_result)
-            
-            result_file = f"results/batch_result_{folder_name}_{timestamp}.json"
+
+            result_file = f"{result_path}/batch_result_{folder_name}_{timestamp}.json"
             save_data = {
                 "batch_info": {
                     "folder_path": folder_path,

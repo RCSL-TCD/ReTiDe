@@ -769,13 +769,3 @@ def fpga_single_inference2(dpu_runner, input_path, output_path, input_ndim, outp
         print(f"FPGA inference failed for {input_path}: {e}")
         return False
 
-# def get_child_subgraph_dpu(graph):
-#     """获取DPU子图（简化版）"""
-#     root_subgraph = graph.get_root_subgraph()
-#     if root_subgraph.is_leaf:
-#         return []
-#     child_subgraphs = root_subgraph.toposort_child_subgraph()
-#     return [
-#         cs for cs in child_subgraphs
-#         if cs.has_attr("device") and cs.get_attr("device").upper() == "DPU"
-#     ]
