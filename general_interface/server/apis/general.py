@@ -576,7 +576,7 @@ def reconstruct_video_from_frames(processed_frames_dir, frames_info, temp_dir):
         return {'success': False, 'error': f'Video reconstruction failed: {str(e)}'}
     
 @api_bp.route('/fpga_single_inference', methods=['POST'])
-def fpga_single_inference():
+def fpga_single_inference_demo():
     clean_results()
     try:
         if 'image' not in request.files:
@@ -629,6 +629,146 @@ def fpga_single_inference():
         return jsonify(error=f"Failed to process image: {str(e)}"), 500
     
 
+# @api_bp.route('/fpga_inference_multiple', methods=['POST'])
+# def fpga_inference_multiple():
+#     try:
+#         if 'images' not in request.files:
+#             return jsonify(error="No image files provided"), 400
+        
+#         files = request.files.getlist('images')
+#         if not files or files[0].filename == '':
+#             return jsonify(error="No selected files"), 400
+        
+#         # 初始化FPGA处理器
+#         xmodel_path = "models/Color/QAT_C_V1.xmodel"  # 根据需要调整路径
+#         g = xir.Graph.deserialize(xmodel_path)
+#         subgraphs = get_child_subgraph_dpu(g)
+#         dpu_runner = vart.Runner.create_runner(subgraphs[0], "run")
+        
+#         # 获取模型参数
+#         inputTensors = dpu_runner.get_input_tensors()
+#         outputTensors = dpu_runner.get_output_tensors()
+#         input_ndim = tuple(inputTensors[0].dims)
+#         output_ndim = tuple(outputTensors[0].dims)
+        
+#         input_fixpos = inputTensors[0].get_attr("fix_point")
+#         input_scale = 2**input_fixpos
+#         output_fixpos = outputTensors[0].get_attr("fix_point")
+#         output_scale = 2**output_fixpos if output_fixpos is not None else 1.0
+        
+#         results = []
+#         valid_files = 0
+        
+#         for file in files:
+#             if file and allowed_file(file.filename):
+#                 valid_files += 1
+#                 original_filename = secure_filename(file.filename)
+#                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+#                 unique_id = str(uuid.uuid4())[:8]
+#                 name, ext = os.path.splitext(original_filename)
+                
+#                 # 保存上传文件
+#                 upload_filename = f"{name}_{timestamp}_{unique_id}{ext}"
+#                 upload_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], upload_filename)
+#                 file.save(upload_filepath)
+                
+#                 # 处理图像
+#                 processed_filename = f"processed_{name}_{timestamp}_{unique_id}.png"
+#                 processed_filepath = os.path.join(current_app.config['PROCESSED_FOLDER'], processed_filename)
+                
+#                 # FPGA推理
+#                 success = fpga_single_inference2(
+#                     dpu_runner, 
+#                     upload_filepath, 
+#                     processed_filepath,
+#                     input_ndim,
+#                     output_ndim,
+#                     input_scale,
+#                     output_scale
+#                 )
+                
+#                 file_result = {
+#                     "original_filename": original_filename,
+#                     "saved_filename": upload_filename,
+#                     "filepath": upload_filepath,
+#                     "inference_result": {
+#                         "class": "processed_image",
+#                         "confidence": 0.95,
+#                         "status": "success" if success else "failed"
+#                     }
+#                 }
+                
+#                 if success:
+#                     file_result["processed_image_url"] = f"http://{request.host}/api/processed/{processed_filename}"
+                
+#                 results.append(file_result)
+        
+#         # 清理资源
+#         del dpu_runner
+        
+#         if valid_files == 0:
+#             return jsonify(error="No valid image files found"), 400
+        
+#         response_data = {
+#             "status": "success",
+#             "message": f"Processed {valid_files} images successfully using FPGA",
+#             "total_images": valid_files,
+#             "results": results
+#         }
+        
+#         return jsonify(response_data)
+        
+#     except Exception as e:
+#         return jsonify(error=f"Failed to process images with FPGA: {str(e)}"), 500
+
+# def fpga_single_inference2(dpu_runner, input_path, output_path, input_ndim, output_ndim, input_scale, output_scale):
+#     """单张图像FPGA推理"""
+#     try:
+#         # 读取并预处理图像
+#         image = cv2.imread(input_path, cv2.IMREAD_COLOR)
+#         if image is None:
+#             return False
+        
+#         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+#         input_height, input_width = input_ndim[1:3]
+        
+#         if image_rgb.shape[:2] != (input_height, input_width):
+#             image_resized = cv2.resize(image_rgb, (input_width, input_height))
+#         else:
+#             image_resized = image_rgb
+        
+#         # 预处理
+#         processed_image = image_resized.astype(np.float32) * (1.0 / 255.0) * input_scale
+#         processed_image = processed_image.astype(np.int8)
+        
+#         # 准备输入输出数据
+#         input_data = [np.empty(input_ndim, dtype=np.int8, order="C")]
+#         output_data = [np.empty(output_ndim, dtype=np.int8, order="C")]
+        
+#         input_data[0][0, ...] = processed_image.reshape(input_ndim[1:])
+        
+#         # 执行推理
+#         job_id = dpu_runner.execute_async(input_data, output_data)
+#         dpu_runner.wait(job_id)
+        
+#         # 后处理
+#         output_img = output_data[0][0]
+#         denoised_float = (output_img.astype(np.float32) / output_scale) * 255.0
+#         denoised_float = np.clip(denoised_float, 0, 255).astype(np.uint8)
+#         denoised_bgr = cv2.cvtColor(denoised_float, cv2.COLOR_RGB2BGR)
+        
+#         # 保存结果
+#         output_dir = os.path.dirname(output_path)
+#         if output_dir and not os.path.exists(output_dir):
+#             os.makedirs(output_dir)
+        
+#         cv2.imwrite(output_path, denoised_bgr)
+#         return True
+        
+#     except Exception as e:
+#         print(f"FPGA inference failed for {input_path}: {e}")
+#         return False
+
 @api_bp.route('/fpga_inference_multiple', methods=['POST'])
 def fpga_inference_multiple():
     try:
@@ -639,15 +779,18 @@ def fpga_inference_multiple():
         if not files or files[0].filename == '':
             return jsonify(error="No selected files"), 400
         
-        # 初始化FPGA处理器
-        xmodel_path = "models/Color/QAT_C_V1.xmodel"  # 根据需要调整路径
+        # 初始化多个FPGA DPU runner
+        xmodel_path = "models/Color/QAT_C_V1.xmodel"
         g = xir.Graph.deserialize(xmodel_path)
         subgraphs = get_child_subgraph_dpu(g)
-        dpu_runner = vart.Runner.create_runner(subgraphs[0], "run")
         
-        # 获取模型参数
-        inputTensors = dpu_runner.get_input_tensors()
-        outputTensors = dpu_runner.get_output_tensors()
+        # 创建多个DPU runner并行处理
+        num_runners = min(4, len(files))  # 最多4个runner，不超过文件数
+        dpu_runners = [vart.Runner.create_runner(subgraphs[0], "run") for _ in range(num_runners)]
+        
+        # 获取模型参数（所有runner参数相同）
+        inputTensors = dpu_runners[0].get_input_tensors()
+        outputTensors = dpu_runners[0].get_output_tensors()
         input_ndim = tuple(inputTensors[0].dims)
         output_ndim = tuple(outputTensors[0].dims)
         
@@ -659,9 +802,12 @@ def fpga_inference_multiple():
         results = []
         valid_files = 0
         
-        for file in files:
+        # 使用线程池并行处理
+        import concurrent.futures
+        
+        def process_single_file(file_info):
+            file_idx, file = file_info
             if file and allowed_file(file.filename):
-                valid_files += 1
                 original_filename = secure_filename(file.filename)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 unique_id = str(uuid.uuid4())[:8]
@@ -676,9 +822,10 @@ def fpga_inference_multiple():
                 processed_filename = f"processed_{name}_{timestamp}_{unique_id}.png"
                 processed_filepath = os.path.join(current_app.config['PROCESSED_FOLDER'], processed_filename)
                 
-                # FPGA推理
-                success = fpga_single_inference2(
-                    dpu_runner, 
+                # 为每个文件分配一个DPU runner（轮询）
+                runner_idx = file_idx % num_runners
+                success = fpga_single_inference(
+                    dpu_runners[runner_idx], 
                     upload_filepath, 
                     processed_filepath,
                     input_ndim,
@@ -701,18 +848,30 @@ def fpga_inference_multiple():
                 if success:
                     file_result["processed_image_url"] = f"http://{request.host}/api/processed/{processed_filename}"
                 
-                results.append(file_result)
+                return file_result
+            return None
+        
+        # 并行处理所有文件
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_runners) as executor:
+            file_infos = [(i, file) for i, file in enumerate(files)]
+            processed_results = list(executor.map(process_single_file, file_infos))
+        
+        # 过滤有效结果
+        results = [result for result in processed_results if result is not None]
+        valid_files = len(results)
         
         # 清理资源
-        del dpu_runner
+        for runner in dpu_runners:
+            del runner
         
         if valid_files == 0:
             return jsonify(error="No valid image files found"), 400
         
         response_data = {
             "status": "success",
-            "message": f"Processed {valid_files} images successfully using FPGA",
+            "message": f"Processed {valid_files} images successfully using {num_runners} FPGA cores",
             "total_images": valid_files,
+            "fpga_cores_used": num_runners,
             "results": results
         }
         
@@ -721,7 +880,7 @@ def fpga_inference_multiple():
     except Exception as e:
         return jsonify(error=f"Failed to process images with FPGA: {str(e)}"), 500
 
-def fpga_single_inference2(dpu_runner, input_path, output_path, input_ndim, output_ndim, input_scale, output_scale):
+def fpga_single_inference(dpu_runner, input_path, output_path, input_ndim, output_ndim, input_scale, output_scale):
     """单张图像FPGA推理"""
     try:
         # 读取并预处理图像
@@ -769,3 +928,13 @@ def fpga_single_inference2(dpu_runner, input_path, output_path, input_ndim, outp
         print(f"FPGA inference failed for {input_path}: {e}")
         return False
 
+def get_child_subgraph_dpu(graph):
+    """获取DPU子图"""
+    root_subgraph = graph.get_root_subgraph()
+    if root_subgraph.is_leaf:
+        return []
+    child_subgraphs = root_subgraph.toposort_child_subgraph()
+    return [
+        cs for cs in child_subgraphs
+        if cs.has_attr("device") and cs.get_attr("device").upper() == "DPU"
+    ]
