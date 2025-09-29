@@ -29,6 +29,6 @@ Vitis-AI /workspace > conda activate vitis-ai-pytorch
 ```
 
 ```shell
-(vitis-ai-pytorch) Vitis-AI /workspace > python run_all_gray_scale_oldmodel.py
+(vitis-ai-pytorch) Vitis-AI /workspace > python run_all_gray_scale.py
 (vitis-ai-pytorch) Vitis-AI /workspace > source run_compile.sh
 ```

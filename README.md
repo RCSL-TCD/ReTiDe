@@ -11,13 +11,15 @@
 - Output: xmodel
 ## Released model
 - This contains the model evaluated in the paper, including float32, PTQ, and QAT version.
+
+## General interface
+- The python interface for calling the FPGA's denoising service on the server.
+
 ## Deployment
-- Follow this flow to build the server enviroment.
+- Deploy the serve app and FPGA docker enviroment following "general interface" part.
 - Here we take centos + Alveo U50 as a typical example.
 - Input: xmodel, dataset.
 - Ouput: benchmarking result.
-## General interface
-- The python interface for calling the FPGA's denoising service on the server.
 
 ## Reference and resources
 - Float model dev version: https://github.com/MrBled/HardwareDenoiser
@@ -27,6 +29,7 @@
 - BSD68C: https://github.com/clausmichele/CBSD68-dataset?tab=readme-ov-file
 - BSD100: https://www.kaggle.com/datasets/asilva1691/bsd100
 - SET12: https://www.kaggle.com/datasets/leweihua/set12-231008
+- Uploaded pre-processed dataset for your benchmarking convenience: https://drive.google.com/drive/folders/16fbUAJ0pD-zlKcj4Qxqu7_LQmG7Rp2oo?usp=sharing
 
 
 ## Citation
