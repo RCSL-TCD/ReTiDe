@@ -41,7 +41,6 @@ port = 5000
 ```
 - Observe the log both on the client and server.
 ```shell
-(client) ok: {'message': 'Hello, World!'}
 (client) ✓ upload ok
 (client) save on server: noisy_0_20250929_054545_68b66ca9.png
 (client)   prediction result: processed_image

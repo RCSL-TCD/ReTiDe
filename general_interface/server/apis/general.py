@@ -10,6 +10,15 @@ from models.models_0812 import UnetGenerator_hardware as Unet
 from utils.tools import clean_results, allowed_file
 from configs.config_test import *
 
+from ctypes import *
+from typing import List
+import cv2
+import numpy as np
+import vart
+import os
+import pathlib
+import xir
+import sys
 
 api_bp = Blueprint('api', __name__)
 
@@ -44,26 +53,133 @@ def process_image(image_path, output_path):
         print(f"process images error: {e}")
         return False
 
-def fpga_process_image(image_path, output_path):
+# def fpga_process_image(image_path, output_path):
+#     try:
+#         image = Image.open(image_path).convert('RGB')
+#         image = image.resize((256, 256))
+
+
+
+#         transform = transforms.ToTensor()
+#         image_tensor = transform(image).unsqueeze(0).to(device)
+
+#         with torch.no_grad():
+#             output_tensor = model(image_tensor)
+
+#         output_tensor = output_tensor.clamp(0, 1).cpu().squeeze(0)
+#         output_image = transforms.ToPILImage()(output_tensor)
+#         output_image.save(output_path, format="PNG")
+
+#         return True
+#     except Exception as e:
+#         print(f"process images error: {e}")
+#         return False
+def get_child_subgraph_dpu(graph: "Graph") -> List["Subgraph"]:
+    assert graph is not None, "'graph' should not be None."
+    root_subgraph = graph.get_root_subgraph()
+    assert (root_subgraph is not None), "Failed to get root subgraph of input Graph object."
+    if root_subgraph.is_leaf:
+        return []
+    child_subgraphs = root_subgraph.toposort_child_subgraph()
+    assert child_subgraphs is not None and len(child_subgraphs) > 0
+    return [
+        cs
+        for cs in child_subgraphs
+        if cs.has_attr("device") and cs.get_attr("device").upper() == "DPU"
+    ]
+
+def fpga_process_image(image_path, output_path, xmodel_path):
+    """
+    FPGA单次推理函数
+    Args:
+        image_path: 输入图像路径
+        output_path: 输出图像保存路径
+        xmodel_path: FPGA模型路径
+    Returns:
+        bool: 处理成功返回True，失败返回False
+    """
     try:
-        image = Image.open(image_path).convert('RGB')
-        image = image.resize((256, 256))
-
-
-
-        transform = transforms.ToTensor()
-        image_tensor = transform(image).unsqueeze(0).to(device)
-
-        with torch.no_grad():
-            output_tensor = model(image_tensor)
-
-        output_tensor = output_tensor.clamp(0, 1).cpu().squeeze(0)
-        output_image = transforms.ToPILImage()(output_tensor)
-        output_image.save(output_path, format="PNG")
-
+        # 加载DPU模型
+        g = xir.Graph.deserialize(xmodel_path)
+        subgraphs = get_child_subgraph_dpu(g)
+        dpu_runner = vart.Runner.create_runner(subgraphs[0], "run")
+        
+        # 获取输入输出张量信息
+        inputTensors = dpu_runner.get_input_tensors()
+        outputTensors = dpu_runner.get_output_tensors()
+        
+        input_ndim = tuple(inputTensors[0].dims)
+        output_ndim = tuple(outputTensors[0].dims)
+        
+        # 获取量化参数
+        input_fixpos = inputTensors[0].get_attr("fix_point")
+        input_scale = 2**input_fixpos
+        
+        output_fixpos = outputTensors[0].get_attr("fix_point")
+        output_scale = 2**output_fixpos if output_fixpos is not None else 1.0
+        
+        print(f"Input shape: {input_ndim}, Output shape: {output_ndim}")
+        print(f"Input scale: {input_scale}, Output scale: {output_scale}")
+        
+        # 读取并预处理输入图像
+        # 读取为BGR格式
+        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        if image is None:
+            print(f"Failed to read image at {image_path}")
+            return False
+        
+        # 转换BGR到RGB
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        # 调整尺寸到模型输入大小
+        input_height, input_width = input_ndim[1:3]
+        if image_rgb.shape[:2] != (input_height, input_width):
+            image_resized = cv2.resize(image_rgb, (input_width, input_height))
+        else:
+            image_resized = image_rgb
+        
+        # 预处理：归一化并量化
+        processed_image = image_resized.astype(np.float32) * (1.0 / 255.0) * input_scale
+        processed_image = processed_image.astype(np.int8)
+        
+        # 准备输入数据 (batch_size=1)
+        input_data = [np.empty(input_ndim, dtype=np.int8, order="C")]
+        input_data[0][0, ...] = processed_image.reshape(input_ndim[1:])
+        
+        # 准备输出数据
+        output_data = [np.empty(output_ndim, dtype=np.int8, order="C")]
+        
+        # 执行推理
+        job_id = dpu_runner.execute_async(input_data, output_data)
+        dpu_runner.wait(job_id)
+        
+        # 后处理输出
+        output_img = output_data[0][0]  # 取batch中的第一个
+        
+        # 反量化并缩放到[0,255]范围
+        denoised_float = (output_img.astype(np.float32) / output_scale) * 255.0
+        denoised_float = np.clip(denoised_float, 0, 255).astype(np.uint8)
+        
+        # 转换回BGR格式用于保存
+        denoised_bgr = cv2.cvtColor(denoised_float, cv2.COLOR_RGB2BGR)
+        
+        # 确保输出目录存在
+        output_dir = os.path.dirname(output_path)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        # 保存图像
+        cv2.imwrite(output_path, denoised_bgr)
+        
+        print(f"Successfully processed image: {image_path} -> {output_path}")
+        
+        # 清理资源
+        del dpu_runner
+        
         return True
+        
     except Exception as e:
-        print(f"process images error: {e}")
+        print(f"FPGA process image error: {e}")
         return False
 
 @api_bp.route('/hello', methods=['GET'])
@@ -514,7 +630,12 @@ def fpga_single_inference():
             processed_filepath = os.path.join(current_app.config['PROCESSED_FOLDER'], processed_filename)
             
             process_success = fpga_process_image(filepath, processed_filepath)
-            
+            process_success = fpga_process_image(
+                image_path=filepath,
+                output_path=processed_filepath,
+                xmodel_path="models/Color/QAT_C_V1.xmodel"
+            )
+    
             result = {
                 "status": "success",
                 "message": "Image uploaded and processed successfully",
