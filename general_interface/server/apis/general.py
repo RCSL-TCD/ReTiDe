@@ -677,7 +677,7 @@ def fpga_inference_multiple():
                 processed_filepath = os.path.join(current_app.config['PROCESSED_FOLDER'], processed_filename)
                 
                 # FPGA推理
-                success = fpga_single_inference(
+                success = fpga_single_inference2(
                     dpu_runner, 
                     upload_filepath, 
                     processed_filepath,
@@ -721,53 +721,53 @@ def fpga_inference_multiple():
     except Exception as e:
         return jsonify(error=f"Failed to process images with FPGA: {str(e)}"), 500
 
-# def fpga_single_inference(dpu_runner, input_path, output_path, input_ndim, output_ndim, input_scale, output_scale):
-#     """单张图像FPGA推理"""
-#     try:
-#         # 读取并预处理图像
-#         image = cv2.imread(input_path, cv2.IMREAD_COLOR)
-#         if image is None:
-#             return False
+def fpga_single_inference2(dpu_runner, input_path, output_path, input_ndim, output_ndim, input_scale, output_scale):
+    """单张图像FPGA推理"""
+    try:
+        # 读取并预处理图像
+        image = cv2.imread(input_path, cv2.IMREAD_COLOR)
+        if image is None:
+            return False
         
-#         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-#         input_height, input_width = input_ndim[1:3]
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        input_height, input_width = input_ndim[1:3]
         
-#         if image_rgb.shape[:2] != (input_height, input_width):
-#             image_resized = cv2.resize(image_rgb, (input_width, input_height))
-#         else:
-#             image_resized = image_rgb
+        if image_rgb.shape[:2] != (input_height, input_width):
+            image_resized = cv2.resize(image_rgb, (input_width, input_height))
+        else:
+            image_resized = image_rgb
         
-#         # 预处理
-#         processed_image = image_resized.astype(np.float32) * (1.0 / 255.0) * input_scale
-#         processed_image = processed_image.astype(np.int8)
+        # 预处理
+        processed_image = image_resized.astype(np.float32) * (1.0 / 255.0) * input_scale
+        processed_image = processed_image.astype(np.int8)
         
-#         # 准备输入输出数据
-#         input_data = [np.empty(input_ndim, dtype=np.int8, order="C")]
-#         output_data = [np.empty(output_ndim, dtype=np.int8, order="C")]
+        # 准备输入输出数据
+        input_data = [np.empty(input_ndim, dtype=np.int8, order="C")]
+        output_data = [np.empty(output_ndim, dtype=np.int8, order="C")]
         
-#         input_data[0][0, ...] = processed_image.reshape(input_ndim[1:])
+        input_data[0][0, ...] = processed_image.reshape(input_ndim[1:])
         
-#         # 执行推理
-#         job_id = dpu_runner.execute_async(input_data, output_data)
-#         dpu_runner.wait(job_id)
+        # 执行推理
+        job_id = dpu_runner.execute_async(input_data, output_data)
+        dpu_runner.wait(job_id)
         
-#         # 后处理
-#         output_img = output_data[0][0]
-#         denoised_float = (output_img.astype(np.float32) / output_scale) * 255.0
-#         denoised_float = np.clip(denoised_float, 0, 255).astype(np.uint8)
-#         denoised_bgr = cv2.cvtColor(denoised_float, cv2.COLOR_RGB2BGR)
+        # 后处理
+        output_img = output_data[0][0]
+        denoised_float = (output_img.astype(np.float32) / output_scale) * 255.0
+        denoised_float = np.clip(denoised_float, 0, 255).astype(np.uint8)
+        denoised_bgr = cv2.cvtColor(denoised_float, cv2.COLOR_RGB2BGR)
         
-#         # 保存结果
-#         output_dir = os.path.dirname(output_path)
-#         if output_dir and not os.path.exists(output_dir):
-#             os.makedirs(output_dir)
+        # 保存结果
+        output_dir = os.path.dirname(output_path)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         
-#         cv2.imwrite(output_path, denoised_bgr)
-#         return True
+        cv2.imwrite(output_path, denoised_bgr)
+        return True
         
-#     except Exception as e:
-#         print(f"FPGA inference failed for {input_path}: {e}")
-#         return False
+    except Exception as e:
+        print(f"FPGA inference failed for {input_path}: {e}")
+        return False
 
 # def get_child_subgraph_dpu(graph):
 #     """获取DPU子图（简化版）"""
