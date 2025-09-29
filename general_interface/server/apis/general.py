@@ -640,7 +640,7 @@ def fpga_inference_multiple():
             return jsonify(error="No selected files"), 400
         
         # 初始化FPGA处理器
-        xmodel_path = "UnetGenerator_u50.xmodel"  # 根据需要调整路径
+        xmodel_path = "models/Color/QAT_C_V1.xmodel"  # 根据需要调整路径
         g = xir.Graph.deserialize(xmodel_path)
         subgraphs = get_child_subgraph_dpu(g)
         dpu_runner = vart.Runner.create_runner(subgraphs[0], "run")
