@@ -163,7 +163,7 @@ def fpga_process_image(image_path, output_path, xmodel_path):
 
 @api_bp.route('/hello', methods=['GET'])
 def hello():
-    return jsonify(message="Hello, World!")
+    return jsonify(message="Interface test ok!")
 
 @api_bp.route('/f32_inference', methods=['POST'])
 def f32_inference():
@@ -779,6 +779,11 @@ def fpga_inference_multiple():
         if not files or files[0].filename == '':
             return jsonify(error="No selected files"), 400
         
+        # 获取应用配置
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        processed_folder = current_app.config['PROCESSED_FOLDER']
+        host = request.host
+        
         # 初始化多个FPGA DPU runner
         xmodel_path = "models/Color/QAT_C_V1.xmodel"
         g = xir.Graph.deserialize(xmodel_path)
@@ -815,12 +820,12 @@ def fpga_inference_multiple():
                 
                 # 保存上传文件
                 upload_filename = f"{name}_{timestamp}_{unique_id}{ext}"
-                upload_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], upload_filename)
+                upload_filepath = os.path.join(upload_folder, upload_filename)
                 file.save(upload_filepath)
                 
                 # 处理图像
                 processed_filename = f"processed_{name}_{timestamp}_{unique_id}.png"
-                processed_filepath = os.path.join(current_app.config['PROCESSED_FOLDER'], processed_filename)
+                processed_filepath = os.path.join(processed_folder, processed_filename)
                 
                 # 为每个文件分配一个DPU runner（轮询）
                 runner_idx = file_idx % num_runners
@@ -846,7 +851,7 @@ def fpga_inference_multiple():
                 }
                 
                 if success:
-                    file_result["processed_image_url"] = f"http://{request.host}/api/processed/{processed_filename}"
+                    file_result["processed_image_url"] = f"http://{host}/api/processed/{processed_filename}"
                 
                 return file_result
             return None
