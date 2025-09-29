@@ -108,6 +108,98 @@ def single_f32_inference(image_path):
         import traceback
         traceback.print_exc() 
         return False
+    
+def single_fpga_inference(image_path):
+    url = f"http://{server_ip}:{port}/api/fpga_single_inference"
+    os.makedirs('results', exist_ok=True)
+    os.makedirs('results/images', exist_ok=True)
+    
+    try:
+        # stage1: upload image
+        with open(image_path, 'rb') as f:
+            files = {'image': f}
+            response = requests.post(url, files=files)
+        # stage2: handle response
+        if response.status_code == 200:
+            try:
+                result = response.json()
+            except json.JSONDecodeError:
+                print(f"✗ Returned json is not valid: {response.text}")
+                return False
+            
+            if not isinstance(result, dict):
+                print(f"✗ Returned type is not dict: {type(result)}")
+                print(f"return result: {result}")
+                return False
+            
+            print(f"✓ upload ok")
+            
+            saved_filename = result.get('saved_filename', 'unkown filename')
+            print(f"save on server: {saved_filename}")
+            
+            inference = result.get('inference_result', {})
+            if isinstance(inference, dict):
+                class_name = inference.get('class', 'N/A')
+                confidence = inference.get('confidence', 0)
+                print(f"  prediction result: {class_name} (confidence: {confidence:.2f})")
+            else:
+                print(f"  prediction result: {inference}")
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            image_name = os.path.splitext(os.path.basename(image_path))[0]
+            
+            processed_image_saved = False
+            processed_image_path = None
+            
+            if 'processed_image_url' in result and result['processed_image_url']:
+                processed_image_url = result['processed_image_url']
+                processed_image_path = f"results/images/processed_{image_name}_{timestamp}.png"
+                
+                img_response = requests.get(processed_image_url)
+                if img_response.status_code == 200:
+                    with open(processed_image_path, 'wb') as f:
+                        f.write(img_response.content)
+                    print(f"✓ processed image saved: {processed_image_path}")
+                    processed_image_saved = True
+                else:
+                    print(f"✗ failed to download processed image: {img_response.status_code}")
+
+            original_copy_path = f"results/images/original_{image_name}_{timestamp}.png"
+            try:
+                shutil.copy2(image_path, original_copy_path)
+                print(f"✓ original copy saved: {original_copy_path}")
+            except Exception as e:
+                print(f"✗ failed to save original copy: {e}")
+
+            result_file = f"results/result_{image_name}_{timestamp}.json"
+            save_data = {
+                "original_image": image_path,
+                "original_copy": original_copy_path,
+                "upload_time": datetime.now().isoformat(),
+                "server_response": result,
+                "local_saved_files": {
+                    "original_copy": original_copy_path,
+                    "processed_image": processed_image_path if processed_image_saved else None,
+                    "result_json": result_file
+                }
+            }
+            
+            with open(result_file, 'w', encoding='utf-8') as f:
+                json.dump(save_data, f, indent=2, ensure_ascii=False)
+
+            print(f"✓ complete result saved: {result_file}")
+            return True
+            
+        else:
+            print(f"✗ upload failed: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"✗ error: {e}")
+        import traceback
+        traceback.print_exc() 
+        return False
+    
 def multiple_f32_inference(folder_path):
     url = f"http://{server_ip}:{port}/api/f32_inference_multiple"
     

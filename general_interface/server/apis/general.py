@@ -44,6 +44,28 @@ def process_image(image_path, output_path):
         print(f"process images error: {e}")
         return False
 
+def fpga_process_image(image_path, output_path):
+    try:
+        image = Image.open(image_path).convert('RGB')
+        image = image.resize((256, 256))
+
+
+
+        transform = transforms.ToTensor()
+        image_tensor = transform(image).unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            output_tensor = model(image_tensor)
+
+        output_tensor = output_tensor.clamp(0, 1).cpu().squeeze(0)
+        output_image = transforms.ToPILImage()(output_tensor)
+        output_image.save(output_path, format="PNG")
+
+        return True
+    except Exception as e:
+        print(f"process images error: {e}")
+        return False
+
 @api_bp.route('/hello', methods=['GET'])
 def hello():
     return jsonify(message="Hello, World!")
@@ -466,3 +488,51 @@ def reconstruct_video_from_frames(processed_frames_dir, frames_info, temp_dir):
         
     except Exception as e:
         return {'success': False, 'error': f'Video reconstruction failed: {str(e)}'}
+    
+@api_bp.route('/fpga_single_inference', methods=['POST'])
+def fpga_single_inference():
+    clean_results()
+    try:
+        if 'image' not in request.files:
+            return jsonify(error="No image file provided"), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify(error="No selected file"), 400
+        
+        if file and allowed_file(file.filename):
+            original_filename = secure_filename(file.filename)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            unique_id = str(uuid.uuid4())[:8]
+            name, ext = os.path.splitext(original_filename)
+            filename = f"{name}_{timestamp}_{unique_id}{ext}"
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            
+            file.save(filepath)
+            
+            processed_filename = f"processed_{name}_{timestamp}_{unique_id}.png"
+            processed_filepath = os.path.join(current_app.config['PROCESSED_FOLDER'], processed_filename)
+            
+            process_success = fpga_process_image(filepath, processed_filepath)
+            
+            result = {
+                "status": "success",
+                "message": "Image uploaded and processed successfully",
+                "original_filename": original_filename,
+                "saved_filename": filename,
+                "filepath": filepath,
+                "inference_result": {
+                    "class": "processed_image",
+                    "confidence": 0.95
+                }
+            }
+            
+            if process_success:
+                result["processed_image_url"] = f"http://{request.host}/api/processed/{processed_filename}"
+            
+            return jsonify(result)
+        else:
+            return jsonify(error="File type not allowed"), 400
+        
+    except Exception as e:
+        return jsonify(error=f"Failed to process image: {str(e)}"), 500
