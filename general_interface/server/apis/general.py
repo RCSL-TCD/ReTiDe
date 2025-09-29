@@ -20,6 +20,15 @@ import pathlib
 import xir
 import sys
 
+import cv2
+import numpy as np
+import os
+import uuid
+import shutil
+from werkzeug.utils import secure_filename
+from flask import request, jsonify, send_file
+import tempfile
+
 api_bp = Blueprint('api', __name__)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -53,27 +62,6 @@ def process_image(image_path, output_path):
         print(f"process images error: {e}")
         return False
 
-# def fpga_process_image(image_path, output_path):
-#     try:
-#         image = Image.open(image_path).convert('RGB')
-#         image = image.resize((256, 256))
-
-
-
-#         transform = transforms.ToTensor()
-#         image_tensor = transform(image).unsqueeze(0).to(device)
-
-#         with torch.no_grad():
-#             output_tensor = model(image_tensor)
-
-#         output_tensor = output_tensor.clamp(0, 1).cpu().squeeze(0)
-#         output_image = transforms.ToPILImage()(output_tensor)
-#         output_image.save(output_path, format="PNG")
-
-#         return True
-#     except Exception as e:
-#         print(f"process images error: {e}")
-#         return False
 def get_child_subgraph_dpu(graph: "Graph") -> List["Subgraph"]:
     assert graph is not None, "'graph' should not be None."
     root_subgraph = graph.get_root_subgraph()
@@ -89,15 +77,6 @@ def get_child_subgraph_dpu(graph: "Graph") -> List["Subgraph"]:
     ]
 
 def fpga_process_image(image_path, output_path, xmodel_path):
-    """
-    FPGA单次推理函数
-    Args:
-        image_path: 输入图像路径
-        output_path: 输出图像保存路径
-        xmodel_path: FPGA模型路径
-    Returns:
-        bool: 处理成功返回True，失败返回False
-    """
     try:
         # 加载DPU模型
         g = xir.Graph.deserialize(xmodel_path)
@@ -309,15 +288,6 @@ def get_uploaded_image(filename):
     except FileNotFoundError:
         return jsonify(error="Uploaded image not found"), 404
     
-import cv2
-import numpy as np
-import os
-import uuid
-import shutil
-from werkzeug.utils import secure_filename
-from flask import request, jsonify, send_file
-import tempfile
-
 @api_bp.route('/video_denoise', methods=['POST'])
 def video_denoise():
     """
@@ -657,3 +627,155 @@ def fpga_single_inference():
         
     except Exception as e:
         return jsonify(error=f"Failed to process image: {str(e)}"), 500
+    
+
+@api_bp.route('/fpga_inference_multiple', methods=['POST'])
+def fpga_inference_multiple():
+    try:
+        if 'images' not in request.files:
+            return jsonify(error="No image files provided"), 400
+        
+        files = request.files.getlist('images')
+        if not files or files[0].filename == '':
+            return jsonify(error="No selected files"), 400
+        
+        # 初始化FPGA处理器
+        xmodel_path = "UnetGenerator_u50.xmodel"  # 根据需要调整路径
+        g = xir.Graph.deserialize(xmodel_path)
+        subgraphs = get_child_subgraph_dpu(g)
+        dpu_runner = vart.Runner.create_runner(subgraphs[0], "run")
+        
+        # 获取模型参数
+        inputTensors = dpu_runner.get_input_tensors()
+        outputTensors = dpu_runner.get_output_tensors()
+        input_ndim = tuple(inputTensors[0].dims)
+        output_ndim = tuple(outputTensors[0].dims)
+        
+        input_fixpos = inputTensors[0].get_attr("fix_point")
+        input_scale = 2**input_fixpos
+        output_fixpos = outputTensors[0].get_attr("fix_point")
+        output_scale = 2**output_fixpos if output_fixpos is not None else 1.0
+        
+        results = []
+        valid_files = 0
+        
+        for file in files:
+            if file and allowed_file(file.filename):
+                valid_files += 1
+                original_filename = secure_filename(file.filename)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                unique_id = str(uuid.uuid4())[:8]
+                name, ext = os.path.splitext(original_filename)
+                
+                # 保存上传文件
+                upload_filename = f"{name}_{timestamp}_{unique_id}{ext}"
+                upload_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], upload_filename)
+                file.save(upload_filepath)
+                
+                # 处理图像
+                processed_filename = f"processed_{name}_{timestamp}_{unique_id}.png"
+                processed_filepath = os.path.join(current_app.config['PROCESSED_FOLDER'], processed_filename)
+                
+                # FPGA推理
+                success = fpga_single_inference(
+                    dpu_runner, 
+                    upload_filepath, 
+                    processed_filepath,
+                    input_ndim,
+                    output_ndim,
+                    input_scale,
+                    output_scale
+                )
+                
+                file_result = {
+                    "original_filename": original_filename,
+                    "saved_filename": upload_filename,
+                    "filepath": upload_filepath,
+                    "inference_result": {
+                        "class": "processed_image",
+                        "confidence": 0.95,
+                        "status": "success" if success else "failed"
+                    }
+                }
+                
+                if success:
+                    file_result["processed_image_url"] = f"http://{request.host}/api/processed/{processed_filename}"
+                
+                results.append(file_result)
+        
+        # 清理资源
+        del dpu_runner
+        
+        if valid_files == 0:
+            return jsonify(error="No valid image files found"), 400
+        
+        response_data = {
+            "status": "success",
+            "message": f"Processed {valid_files} images successfully using FPGA",
+            "total_images": valid_files,
+            "results": results
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        return jsonify(error=f"Failed to process images with FPGA: {str(e)}"), 500
+
+# def fpga_single_inference(dpu_runner, input_path, output_path, input_ndim, output_ndim, input_scale, output_scale):
+#     """单张图像FPGA推理"""
+#     try:
+#         # 读取并预处理图像
+#         image = cv2.imread(input_path, cv2.IMREAD_COLOR)
+#         if image is None:
+#             return False
+        
+#         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+#         input_height, input_width = input_ndim[1:3]
+        
+#         if image_rgb.shape[:2] != (input_height, input_width):
+#             image_resized = cv2.resize(image_rgb, (input_width, input_height))
+#         else:
+#             image_resized = image_rgb
+        
+#         # 预处理
+#         processed_image = image_resized.astype(np.float32) * (1.0 / 255.0) * input_scale
+#         processed_image = processed_image.astype(np.int8)
+        
+#         # 准备输入输出数据
+#         input_data = [np.empty(input_ndim, dtype=np.int8, order="C")]
+#         output_data = [np.empty(output_ndim, dtype=np.int8, order="C")]
+        
+#         input_data[0][0, ...] = processed_image.reshape(input_ndim[1:])
+        
+#         # 执行推理
+#         job_id = dpu_runner.execute_async(input_data, output_data)
+#         dpu_runner.wait(job_id)
+        
+#         # 后处理
+#         output_img = output_data[0][0]
+#         denoised_float = (output_img.astype(np.float32) / output_scale) * 255.0
+#         denoised_float = np.clip(denoised_float, 0, 255).astype(np.uint8)
+#         denoised_bgr = cv2.cvtColor(denoised_float, cv2.COLOR_RGB2BGR)
+        
+#         # 保存结果
+#         output_dir = os.path.dirname(output_path)
+#         if output_dir and not os.path.exists(output_dir):
+#             os.makedirs(output_dir)
+        
+#         cv2.imwrite(output_path, denoised_bgr)
+#         return True
+        
+#     except Exception as e:
+#         print(f"FPGA inference failed for {input_path}: {e}")
+#         return False
+
+# def get_child_subgraph_dpu(graph):
+#     """获取DPU子图（简化版）"""
+#     root_subgraph = graph.get_root_subgraph()
+#     if root_subgraph.is_leaf:
+#         return []
+#     child_subgraphs = root_subgraph.toposort_child_subgraph()
+#     return [
+#         cs for cs in child_subgraphs
+#         if cs.has_attr("device") and cs.get_attr("device").upper() == "DPU"
+#     ]

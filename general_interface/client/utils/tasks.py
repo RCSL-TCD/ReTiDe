@@ -339,6 +339,146 @@ def multiple_f32_inference(folder_path):
         traceback.print_exc()
         return False
 
+def multiple_fpga_inference(folder_path):
+    url = f"http://{server_ip}:{port}/api/fpga_inference_multiple"
+    
+    os.makedirs('results', exist_ok=True)
+    os.makedirs('results/images', exist_ok=True)
+    
+    image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif'}
+    image_files = []
+    
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            file_ext = os.path.splitext(filename)[1].lower()
+            if file_ext in image_extensions:
+                image_files.append(file_path)
+    
+    if not image_files:
+        print(f"✗ cant find images in folder: {folder_path} ")
+        return False
+    
+    print(f"✓ found {len(image_files)} images")
+    
+    try:
+        files = []
+        for image_path in image_files:
+            files.append(('images', (os.path.basename(image_path), open(image_path, 'rb'), 'image/jpeg')))
+        
+        response = requests.post(url, files=files)
+        
+        for _, file_tuple in files:
+            file_tuple[1].close()
+        
+        if response.status_code == 200:
+            try:
+                result = response.json()
+            except json.JSONDecodeError:
+                print(f"✗ return json invalid: {response.text}")
+                return False
+            
+            if not isinstance(result, dict):
+                print(f"✗ return not dict: {type(result)}")
+                print(f"result: {result}")
+                return False
+            
+            print(f"✓ batch upload ok")
+            print(f"found {result.get('total_images', 0)} images")
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            folder_name = os.path.basename(os.path.normpath(folder_path))
+            batch_results = []
+            
+            for i, file_result in enumerate(result.get('results', [])):
+                print(f"\n--- image {i+1} ---")
+                
+                saved_filename = file_result.get('saved_filename', 'unkown filename')
+                print(f"server save path: {saved_filename}")
+
+                inference = file_result.get('inference_result', {})
+                if isinstance(inference, dict):
+                    class_name = inference.get('class', 'N/A')
+                    confidence = inference.get('confidence', 0)
+                    print(f"denoise result: {class_name}")
+                else:
+                    print(f"denoise result: {inference}")
+                
+                original_filename = file_result.get('original_filename', '')
+                image_name = os.path.splitext(original_filename)[0]
+                
+                processed_image_saved = False
+                processed_image_path = None
+                
+                if 'processed_image_url' in file_result and file_result['processed_image_url']:
+                    processed_image_url = file_result['processed_image_url']
+                    processed_image_path = f"results/images/processed_{image_name}_{timestamp}.png"
+                    
+                    img_response = requests.get(processed_image_url)
+                    if img_response.status_code == 200:
+                        with open(processed_image_path, 'wb') as f:
+                            f.write(img_response.content)
+                        print(f"✓ processed image saved: {processed_image_path}")
+                        processed_image_saved = True
+                    else:
+                        print(f"✗ download processed image failed: {img_response.status_code}")
+
+                original_file_path = None
+                for img_file in image_files:
+                    if os.path.basename(img_file) == original_filename:
+                        original_file_path = img_file
+                        break
+                
+                original_copy_path = None
+                if original_file_path:
+                    original_copy_path = f"results/images/original_{image_name}_{timestamp}.png"
+                    try:
+                        shutil.copy2(original_file_path, original_copy_path)
+                        print(f"✓ original image copy saved: {original_copy_path}")
+                    except Exception as e:
+                        print(f"✗ save original image copy failed: {e}")
+
+
+                single_result = {
+                    "original_image": original_file_path,
+                    "original_copy": original_copy_path,
+                    "upload_time": datetime.now().isoformat(),
+                    "server_response": file_result,
+                    "local_saved_files": {
+                        "original_copy": original_copy_path,
+                        "processed_image": processed_image_path if processed_image_saved else None
+                    }
+                }
+                batch_results.append(single_result)
+            
+            result_file = f"results/batch_result_{folder_name}_{timestamp}.json"
+            save_data = {
+                "batch_info": {
+                    "folder_path": folder_path,
+                    "total_images": len(batch_results),
+                    "processed_time": datetime.now().isoformat(),
+                    "timestamp": timestamp
+                },
+                "individual_results": batch_results
+            }
+            
+            with open(result_file, 'w', encoding='utf-8') as f:
+                json.dump(save_data, f, indent=2, ensure_ascii=False)
+
+            print(f"\n✓ batch process complete, results saved: {result_file}")
+            return True
+            
+        else:
+            print(f"✗ batch upload failed: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"✗ error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def video_denoise_inference(video_path):
     """
     客户端调用视频降噪接口
