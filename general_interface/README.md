@@ -1,6 +1,8 @@
 # General interface
 ## Req
 - Vitis-AI 1.4.1: could git from official github, the original docker image is expired, we mannully target to: xilinx/viti-ai-cpu:1.4.1.978
+- The model used in this part please refer to /released_model.
+- The data used in this part please refer to main readme: uploaded pre-processed data.
 ## How to run this
 - (bash): basic enviroment on the server.
 - (vai): vitis-ai docker on the server.
