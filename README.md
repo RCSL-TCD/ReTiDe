@@ -35,5 +35,8 @@
 ## Demo
 - A demo video could be found at: https://www.youtube.com/watch?v=0epcrRA_f2w
 
+## Email
+- For any technical discussion or deployment issues, don't be hesitate to email us :) lic9@tcd.ie.
+
 ## Acknowledgement
 This work was funded by the Horizon CL4 2022 - EU Project Emerald – 101119800.
