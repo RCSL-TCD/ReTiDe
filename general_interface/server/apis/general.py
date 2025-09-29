@@ -651,7 +651,7 @@ def fpga_inference_multiple():
         subgraphs = get_child_subgraph_dpu(g)
 
         # create multiple DPU runners for parallel processing
-        num_runners = min(4, len(files))  # 最多4个runner，不超过文件数
+        num_runners = min(4, len(files))  # max 4 runners or number of files
         dpu_runners = [vart.Runner.create_runner(subgraphs[0], "run") for _ in range(num_runners)]
 
         # get model parameters (all runner parameters are the same)
