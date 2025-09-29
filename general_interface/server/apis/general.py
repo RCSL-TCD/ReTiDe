@@ -629,7 +629,7 @@ def fpga_single_inference():
             processed_filename = f"processed_{name}_{timestamp}_{unique_id}.png"
             processed_filepath = os.path.join(current_app.config['PROCESSED_FOLDER'], processed_filename)
             
-            process_success = fpga_process_image(filepath, processed_filepath)
+           #process_success = fpga_process_image(filepath, processed_filepath)
             process_success = fpga_process_image(
                 image_path=filepath,
                 output_path=processed_filepath,
