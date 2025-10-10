@@ -13,12 +13,14 @@ from utils.tools import clean_results
 if __name__ == "__main__":
     test_api()
     clean_results()
-    image_path = "test_img/BSD100C/noisy35/noisy_0.png"
-    single_f32_inference(image_path)
-    image_path = "test_img/BSD100C/noisy35/noisy_0.png"
-    single_fpga_inference(image_path)
+    # image_path = "test_img/BSD100C/noisy35/noisy_0.png"
+    # single_f32_inference(image_path)
+    # image_path = "test_img/BSD100C/noisy35/noisy_0.png"
+    # single_fpga_inference(image_path)
+    # folder_path = "test_img/BSD100C/noisy35"
+    # multiple_f32_inference(folder_path)
     folder_path = "test_img/BSD100C/noisy35"
-    multiple_f32_inference(folder_path)
+    multiple_fpga_inference(folder_path)
     folder_path = "test_img/BSD100C/noisy35"
     multiple_fpga_inference(folder_path)
     # ----------------------------------------------------------------------------

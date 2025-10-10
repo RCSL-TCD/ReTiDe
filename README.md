@@ -33,7 +33,15 @@
 
 
 ## Citation
-- update our arxiv link here.
+- If you found this work is useful for you, please cite our work below.
+``` bib
+@article{li2025retide,
+  title={ReTiDe: Real-Time Denoising for Energy-Efficient Motion Picture Processing with FPGAs},
+  author={Li, Changhong and Bled, Cl{\'e}ment and Fernandez, Rosa and Shanker, Shreejith},
+  journal={arXiv preprint arXiv:2510.03812},
+  year={2025}
+}
+```
 
 ## Demo
 - A demo video could be found at: https://www.youtube.com/watch?v=0epcrRA_f2w
