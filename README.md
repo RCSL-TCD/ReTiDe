@@ -19,10 +19,21 @@ The datasets we used for benchmarking are listed as follows:
 - BSD100: https://www.kaggle.com/datasets/asilva1691/bsd100
 - SET12: https://www.kaggle.com/datasets/leweihua/set12-231008
 
+## Architecture
+- The integration workflow of Vitis AI with NUKE is illustrated in the following figure.
+The AMD Vitis AI toolchain provides an end-to-end workflow for deploying quantised neural networks, bridging the gap between machine learning frameworks and FPGA-based deployment.
+Moreover, we also provide general client-server interfaces for the integration of other software.
+Starting from FP32 model descriptions written in popular frameworks such as TensorFlow and PyTorch, the toolchain performs model quantisation and operator conversion. The converted models can then be accelerated on the Deep Learning Processing Unit (DPU), which is specifically designed for convolutional and matrix-intensive workloads. By mapping computation-intensive kernels directly onto dedicated hardware engines, the toolchain not only reduces CPU overhead but also maximises parallelism and memory bandwidth utilisation. This hardware–software co-design significantly improves inference throughput while simultaneously reducing power consumption.
+![Figure 1](figs/fig1.png)
+
+- U50 server-level FPGA accelerator card. Figure~\ref{fig:4} demonstrates a processing flow from the original noisy image ($\sigma=50$) to the denoised image with segmentation and corresponding parallelisation. Upon receiving denoising requests initiated by remote or local hosts, the incoming image or video stream is first processed by a pre-processor, which segments and batches the media into standardised input formats suitable for the model. This also facilitates parallel processing across multiple threads and DPU units.
+
+![Figure 2](figs/fig2.png)
+
 ## Result
 We benchmarked our model with both color and grayscale datasets and the results can be found as follows.
 ### PSNR (dB) Comparison of Various Algorithms for Grayscale Image Denoising
-
+![Figure 3](figs/fig3.png)
 | Type    | Method        | BSD68 15 | BSD68 25 | BSD68 50 | URBAN100 15 | URBAN100 25 | URBAN100 50 |
 |---------|---------------|----------|----------|----------|-------------|-------------|-------------|
 | **FP32** | BM3D         | 30.95    | 25.32    | 24.89    | 31.91       | 29.06       | 24.45       |
@@ -47,7 +58,7 @@ We benchmarked our model with both color and grayscale datasets and the results 
 | **QNNs** | **ReTiDe (P)** | Blind        | 32.94  | 0.8943 | 30.38   | 0.8414  | 28.95   | 0.8149  | 27.96   | 0.7941  | 27.06   | 0.7713  |
 |         | **ReTiDe (Q)** | Blind        | 33.22  | 0.9425 | 31.03   | 0.9008  | 29.37   | 0.8576  | 28.14   | 0.8164  | 27.14   | 0.7811  |
 
-![Figure 1](figs/fig1.png)
+![Figure 4](figs/fig4.png)
 
 ### Performance Comparison Across Platforms: Frequency, Throughput, Power, and Energy Efficiency
 
